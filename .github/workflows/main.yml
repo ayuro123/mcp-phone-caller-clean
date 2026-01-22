@@ -11,4 +11,5 @@ jobs:
     steps:
       - name: Ping Render service
         run: |
-          curl -L --max-time 20 -H "Accept: text/event-stream" https://fastmcp-server-cy6x.onrender.com/mcp || true
+          echo "Pinging Render at $(date -u)"
+          curl -L --max-time 20 https://fastmcp-server-cy6x.onrender.com/mcp || true
