@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 import os
+from xml.sax.saxutils import escape
+
+from fastapi import FastAPI
+import uvicorn
+
 from fastmcp import FastMCP
 from twilio.rest import Client
-from xml.sax.saxutils import escape
 
 mcp = FastMCP("Sample MCP Server")
 
+
 @mcp.tool(description="Greet a user by name with a welcome message from the MCP server")
 def greet(name: str) -> str:
-    return f"Hello, {name}! Welcome to our sample MCP server running on Heroku!"
+    return f"Hello, {name}! Welcome to our sample MCP server running on Render!"
+
 
 @mcp.tool(description="Get information about the MCP server including name, version, environment, and Python version")
 def get_server_info() -> dict:
@@ -16,8 +22,9 @@ def get_server_info() -> dict:
         "server_name": "Sample MCP Server",
         "version": "1.0.0",
         "environment": os.environ.get("ENVIRONMENT", "development"),
-        "python_version": os.sys.version.split()[0]
+        "python_version": os.sys.version.split()[0],
     }
+
 
 @mcp.tool
 def call_me(message: str) -> str:
@@ -39,6 +46,8 @@ def call_me(message: str) -> str:
     )
 
     return "Call placed"
+
+
 @mcp.tool
 def call_my_wife(message: str) -> str:
     """Call my wife and read the message aloud."""
@@ -59,15 +68,22 @@ def call_my_wife(message: str) -> str:
     )
 
     return "Called wife"
+
+
+# --- HTTP apps (FastAPI + MCP) ---
+
+# Create the MCP ASGI app (serves MCP at /mcp)
+mcp_app = mcp.http_app(path="/mcp")
+
+# Combine MCP routes into a FastAPI app so we can add /health
+app = FastAPI(lifespan=mcp_app.lifespan, routes=[*mcp_app.routes])
+
+@app.get("/health")
+def health():
+    return "ok"
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     host = "0.0.0.0"
-    
-    print(f"Starting FastMCP server on {host}:{port}")
-    
-    mcp.run(
-        transport="http",
-        host=host,
-        port=port,
-        stateless_http=True
-    )
+    uvicorn.run(app, host=host, port=port)
