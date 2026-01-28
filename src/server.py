@@ -28,7 +28,6 @@ def get_server_info() -> dict:
 
 @mcp.tool
 def call_me(message: str) -> str:
-    """Call my phone and read the message aloud."""
     account_sid = os.environ["TWILIO_ACCOUNT_SID"]
     auth_token = os.environ["TWILIO_AUTH_TOKEN"]
     from_number = os.environ["TWILIO_FROM_NUMBER"]
@@ -37,7 +36,10 @@ def call_me(message: str) -> str:
     client = Client(account_sid, auth_token)
 
     text = escape(message)[:800]
-    twiml = f'<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">{text}</Say></Response>'
+    twiml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<Response><Say voice="alice">{text}</Say></Response>'
+    )
 
     client.calls.create(
         to=to_number,
@@ -50,7 +52,6 @@ def call_me(message: str) -> str:
 
 @mcp.tool
 def call_my_wife(message: str) -> str:
-    """Call my wife and read the message aloud."""
     account_sid = os.environ["TWILIO_ACCOUNT_SID"]
     auth_token = os.environ["TWILIO_AUTH_TOKEN"]
     from_number = os.environ["TWILIO_FROM_NUMBER"]
@@ -59,7 +60,10 @@ def call_my_wife(message: str) -> str:
     client = Client(account_sid, auth_token)
 
     text = escape(message)[:800]
-    twiml = f'<?xml version="1.0" encoding="UTF-8"?><Response><Say voice="alice">{text}</Say></Response>'
+    twiml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<Response><Say voice="alice">{text}</Say></Response>'
+    )
 
     client.calls.create(
         to=to_number,
@@ -72,14 +76,21 @@ def call_my_wife(message: str) -> str:
 
 # --- HTTP apps (FastAPI + MCP) ---
 
-# Create the MCP ASGI app (serves MCP at /mcp)
 mcp_app = mcp.http_app(path="/mcp")
-
-# Combine MCP routes into a FastAPI app so we can add /health
 app = FastAPI(lifespan=mcp_app.lifespan, routes=[*mcp_app.routes])
+
 
 @app.get("/health")
 def health():
+    return "ok"
+
+
+@app.get("/warm")
+def warm():
+    # Force real app initialization so Render fully wakes the instance
+    _ = os.environ.get("TWILIO_ACCOUNT_SID", "")
+    _ = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    _ = os.environ.get("TWILIO_FROM_NUMBER", "")
     return "ok"
 
 
