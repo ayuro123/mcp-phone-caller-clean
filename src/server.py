@@ -37,9 +37,9 @@ def call_me(message: str) -> str:
 
     text = escape(message)[:800]
     twiml = (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        f'<Response><Say voice="Polly.Joanna">{text}</Say></Response>'
-    )
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    f'<Response><Say voice="Polly.Joanna">VOICE TEST. {text}</Say></Response>'
+)
 
     client.calls.create(
         to=to_number,
@@ -61,9 +61,9 @@ def call_my_wife(message: str) -> str:
 
     text = escape(message)[:800]
     twiml = (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        f'<Response><Say voice="Polly.Joanna">{text}</Say></Response>'
-    )
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    f'<Response><Say voice="Polly.Joanna">VOICE TEST. {text}</Say></Response>'
+)
 
     client.calls.create(
         to=to_number,
