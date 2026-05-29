@@ -36,11 +36,25 @@ def call_me(message: str) -> str:
 
     client = Client(account_sid, auth_token)
 
-    text = escape(message)[:800]
+    text = message[:800]
+    eleven = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
+
+    audio = eleven.text_to_speech.convert(
+        voice_id="v0eRobr4pSbFT9FKocdw",
+        model_id="eleven_multilingual_v2",
+        text=text,
+        output_format="mp3_44100_128",
+    )
+
+    audio_path = "/tmp/call_me.mp3"
+    with open(audio_path, "wb") as f:
+        for chunk in audio:
+            f.write(chunk)
+
     twiml = (
-    '<?xml version="1.0" encoding="UTF-8"?>'
-    f'<Response><Say voice="Google.en-US-Neural2-J">{text}</Say></Response>'
-)
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Response><Play>https://fastmcp-server-cy6x.onrender.com/audio/call_me.mp3</Play></Response>'
+    )
 
     client.calls.create(
         to=to_number,
