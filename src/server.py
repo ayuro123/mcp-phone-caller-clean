@@ -7,6 +7,7 @@ import uvicorn
 
 from fastmcp import FastMCP
 from twilio.rest import Client
+from elevenlabs.client import ElevenLabs
 
 mcp = FastMCP("Sample MCP Server")
 
