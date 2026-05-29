@@ -4,3 +4,4 @@ uvicorn>=0.35.0
 twilio
 packaging
 elevenlabs
+requests
