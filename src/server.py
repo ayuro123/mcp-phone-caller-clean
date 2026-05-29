@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 import os
+import uuid
+from typing import Optional
 
 import requests
 from fastapi import FastAPI
@@ -12,13 +14,59 @@ from twilio.rest import Client
 mcp = FastMCP("Sample MCP Server")
 
 BASE_URL = "https://fastmcp-server-cy6x.onrender.com"
-ELEVENLABS_VOICE_ID = "M6ic45wruJGWAxLFEMNK"
+
+DEFAULT_ELEVENLABS_VOICE_ID = "M6ic45wruJGWAxLFEMNK"
 
 
-def generate_audio(message: str, filename: str) -> str:
+def resolve_voice_id(voice: Optional[str] = None, voice_id: Optional[str] = None) -> str:
     api_key = os.environ["ELEVENLABS_API_KEY"]
 
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
+    if voice_id:
+        return voice_id.strip()
+
+    if not voice:
+        return DEFAULT_ELEVENLABS_VOICE_ID
+
+    response = requests.get(
+        "https://api.elevenlabs.io/v1/voices/search",
+        headers={"xi-api-key": api_key},
+        params={
+            "search": voice,
+            "page_size": 20,
+        },
+        timeout=30,
+    )
+
+    if response.status_code != 200:
+        print("ElevenLabs voice search error status:", response.status_code)
+        print("ElevenLabs voice search error body:", response.text)
+        response.raise_for_status()
+
+    voices = response.json().get("voices", [])
+
+    if not voices:
+        print(f"No ElevenLabs voice found for: {voice}")
+        return DEFAULT_ELEVENLABS_VOICE_ID
+
+    exact_matches = [
+        v for v in voices
+        if v.get("name", "").lower() == voice.lower()
+    ]
+
+    selected_voice = exact_matches[0] if exact_matches else voices[0]
+    return selected_voice["voice_id"]
+
+
+def generate_audio(
+    message: str,
+    filename: str,
+    voice: Optional[str] = None,
+    voice_id: Optional[str] = None,
+) -> str:
+    api_key = os.environ["ELEVENLABS_API_KEY"]
+    selected_voice_id = resolve_voice_id(voice=voice, voice_id=voice_id)
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{selected_voice_id}"
 
     response = requests.post(
         url,
@@ -47,14 +95,25 @@ def generate_audio(message: str, filename: str) -> str:
     return audio_path
 
 
-def place_call(to_number: str, message: str, audio_filename: str) -> None:
+def place_call(
+    to_number: str,
+    message: str,
+    audio_filename: str,
+    voice: Optional[str] = None,
+    voice_id: Optional[str] = None,
+) -> None:
     account_sid = os.environ["TWILIO_ACCOUNT_SID"]
     auth_token = os.environ["TWILIO_AUTH_TOKEN"]
     from_number = os.environ["TWILIO_FROM_NUMBER"]
 
     client = Client(account_sid, auth_token)
 
-    generate_audio(message, audio_filename)
+    generate_audio(
+        message=message,
+        filename=audio_filename,
+        voice=voice,
+        voice_id=voice_id,
+    )
 
     audio_url = f"{BASE_URL}/audio/{audio_filename}"
 
@@ -85,17 +144,53 @@ def get_server_info() -> dict:
     }
 
 
-@mcp.tool
-def call_me(message: str) -> str:
+@mcp.tool(
+    description=(
+        "Call me with a spoken message. Optionally provide voice to search ElevenLabs "
+        "by name, accent, style, or description, or provide an exact ElevenLabs voice_id."
+    )
+)
+def call_me(
+    message: str,
+    voice: Optional[str] = None,
+    voice_id: Optional[str] = None,
+) -> str:
     to_number = os.environ["MY_PHONE_NUMBER"]
-    place_call(to_number, message, "call_me.mp3")
+    audio_filename = f"call_me_{uuid.uuid4().hex}.mp3"
+
+    place_call(
+        to_number=to_number,
+        message=message,
+        audio_filename=audio_filename,
+        voice=voice,
+        voice_id=voice_id,
+    )
+
     return "Call placed"
 
 
-@mcp.tool
-def call_my_wife(message: str) -> str:
+@mcp.tool(
+    description=(
+        "Call my wife with a spoken message. Optionally provide voice to search ElevenLabs "
+        "by name, accent, style, or description, or provide an exact ElevenLabs voice_id."
+    )
+)
+def call_my_wife(
+    message: str,
+    voice: Optional[str] = None,
+    voice_id: Optional[str] = None,
+) -> str:
     to_number = os.environ["WIFE_PHONE_NUMBER"]
-    place_call(to_number, message, "call_my_wife.mp3")
+    audio_filename = f"call_my_wife_{uuid.uuid4().hex}.mp3"
+
+    place_call(
+        to_number=to_number,
+        message=message,
+        audio_filename=audio_filename,
+        voice=voice,
+        voice_id=voice_id,
+    )
+
     return "Called wife"
 
 
