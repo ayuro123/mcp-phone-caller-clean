@@ -11,7 +11,7 @@ from elevenlabs.client import ElevenLabs
 mcp = FastMCP("Sample MCP Server")
 
 BASE_URL = "https://fastmcp-server-cy6x.onrender.com"
-ELEVENLABS_VOICE_ID = "v0eRobr4pSbFT9FKocdw"
+ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
 
 
 def generate_audio(message: str, filename: str) -> str:
