@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 import os
-from xml.sax.saxutils import escape
-
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 import uvicorn
 
 from fastmcp import FastMCP
@@ -10,6 +9,51 @@ from twilio.rest import Client
 from elevenlabs.client import ElevenLabs
 
 mcp = FastMCP("Sample MCP Server")
+
+BASE_URL = "https://fastmcp-server-cy6x.onrender.com"
+ELEVENLABS_VOICE_ID = "v0eRobr4pSbFT9FKocdw"
+
+
+def generate_audio(message: str, filename: str) -> str:
+    eleven = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
+
+    audio = eleven.text_to_speech.convert(
+        voice_id=ELEVENLABS_VOICE_ID,
+        model_id="eleven_multilingual_v2",
+        text=message[:800],
+        output_format="mp3_44100_128",
+    )
+
+    audio_path = f"/tmp/{filename}"
+
+    with open(audio_path, "wb") as f:
+        for chunk in audio:
+            f.write(chunk)
+
+    return audio_path
+
+
+def place_call(to_number: str, message: str, audio_filename: str) -> None:
+    account_sid = os.environ["TWILIO_ACCOUNT_SID"]
+    auth_token = os.environ["TWILIO_AUTH_TOKEN"]
+    from_number = os.environ["TWILIO_FROM_NUMBER"]
+
+    client = Client(account_sid, auth_token)
+
+    generate_audio(message, audio_filename)
+
+    audio_url = f"{BASE_URL}/audio/{audio_filename}"
+
+    twiml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f"<Response><Play>{audio_url}</Play></Response>"
+    )
+
+    client.calls.create(
+        to=to_number,
+        from_=from_number,
+        twiml=twiml,
+    )
 
 
 @mcp.tool(description="Greet a user by name with a welcome message from the MCP server")
@@ -29,63 +73,17 @@ def get_server_info() -> dict:
 
 @mcp.tool
 def call_me(message: str) -> str:
-    account_sid = os.environ["TWILIO_ACCOUNT_SID"]
-    auth_token = os.environ["TWILIO_AUTH_TOKEN"]
-    from_number = os.environ["TWILIO_FROM_NUMBER"]
+    """Call my phone and read the message aloud using ElevenLabs."""
     to_number = os.environ["MY_PHONE_NUMBER"]
-
-    client = Client(account_sid, auth_token)
-
-    text = message[:800]
-    eleven = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
-
-    audio = eleven.text_to_speech.convert(
-        voice_id="v0eRobr4pSbFT9FKocdw",
-        model_id="eleven_multilingual_v2",
-        text=text,
-        output_format="mp3_44100_128",
-    )
-
-    audio_path = "/tmp/call_me.mp3"
-    with open(audio_path, "wb") as f:
-        for chunk in audio:
-            f.write(chunk)
-
-    twiml = (
-        '<?xml version="1.0" encoding="UTF-8"?>'
-        '<Response><Play>https://fastmcp-server-cy6x.onrender.com/audio/call_me.mp3</Play></Response>'
-    )
-
-    client.calls.create(
-        to=to_number,
-        from_=from_number,
-        twiml=twiml,
-    )
-
+    place_call(to_number, message, "call_me.mp3")
     return "Call placed"
 
 
 @mcp.tool
 def call_my_wife(message: str) -> str:
-    account_sid = os.environ["TWILIO_ACCOUNT_SID"]
-    auth_token = os.environ["TWILIO_AUTH_TOKEN"]
-    from_number = os.environ["TWILIO_FROM_NUMBER"]
+    """Call my wife and read the message aloud using ElevenLabs."""
     to_number = os.environ["WIFE_PHONE_NUMBER"]
-
-    client = Client(account_sid, auth_token)
-
-    text = escape(message)[:800]
-    twiml = (
-    '<?xml version="1.0" encoding="UTF-8"?>'
-    f'<Response><Say voice="Google.en-US-Neural2-J">{text}</Say></Response>'
-)
-
-    client.calls.create(
-        to=to_number,
-        from_=from_number,
-        twiml=twiml,
-    )
-
+    place_call(to_number, message, "call_my_wife.mp3")
     return "Called wife"
 
 
@@ -102,11 +100,16 @@ def health():
 
 @app.get("/warm")
 def warm():
-    # Force real app initialization so Render fully wakes the instance
     _ = os.environ.get("TWILIO_ACCOUNT_SID", "")
     _ = os.environ.get("TWILIO_AUTH_TOKEN", "")
     _ = os.environ.get("TWILIO_FROM_NUMBER", "")
+    _ = os.environ.get("ELEVENLABS_API_KEY", "")
     return "ok"
+
+
+@app.get("/audio/{filename}")
+def serve_audio(filename: str):
+    return FileResponse(f"/tmp/{filename}", media_type="audio/mpeg")
 
 
 if __name__ == "__main__":
