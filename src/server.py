@@ -12,7 +12,7 @@ from twilio.rest import Client
 mcp = FastMCP("Sample MCP Server")
 
 BASE_URL = "https://fastmcp-server-cy6x.onrender.com"
-ELEVENLABS_VOICE_ID = "iINcpPqwYVYZFsBuJ3kJ"
+ELEVENLABS_VOICE_ID = "M6ic45wruJGWAxLFEMNK"
 
 
 def generate_audio(message: str, filename: str) -> str:
