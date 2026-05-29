@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import os
+
+import requests
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 import uvicorn
 
 from fastmcp import FastMCP
 from twilio.rest import Client
-from elevenlabs.client import ElevenLabs
 
 mcp = FastMCP("Sample MCP Server")
 
@@ -15,20 +16,33 @@ ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"
 
 
 def generate_audio(message: str, filename: str) -> str:
-    eleven = ElevenLabs(api_key=os.environ["ELEVENLABS_API_KEY"])
+    api_key = os.environ["ELEVENLABS_API_KEY"]
 
-    audio = eleven.text_to_speech.convert(
-        voice_id=ELEVENLABS_VOICE_ID,
-        model_id="eleven_multilingual_v2",
-        text=message[:800],
-        output_format="mp3_44100_128",
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
+
+    response = requests.post(
+        url,
+        headers={
+            "xi-api-key": api_key,
+            "Content-Type": "application/json",
+            "Accept": "audio/mpeg",
+        },
+        json={
+            "text": message[:800],
+            "model_id": "eleven_multilingual_v2",
+        },
+        timeout=30,
     )
+
+    if response.status_code != 200:
+        print("ElevenLabs error status:", response.status_code)
+        print("ElevenLabs error body:", response.text)
+        response.raise_for_status()
 
     audio_path = f"/tmp/{filename}"
 
     with open(audio_path, "wb") as f:
-        for chunk in audio:
-            f.write(chunk)
+        f.write(response.content)
 
     return audio_path
 
@@ -73,7 +87,6 @@ def get_server_info() -> dict:
 
 @mcp.tool
 def call_me(message: str) -> str:
-    """Call my phone and read the message aloud using ElevenLabs."""
     to_number = os.environ["MY_PHONE_NUMBER"]
     place_call(to_number, message, "call_me.mp3")
     return "Call placed"
@@ -81,13 +94,10 @@ def call_me(message: str) -> str:
 
 @mcp.tool
 def call_my_wife(message: str) -> str:
-    """Call my wife and read the message aloud using ElevenLabs."""
     to_number = os.environ["WIFE_PHONE_NUMBER"]
     place_call(to_number, message, "call_my_wife.mp3")
     return "Called wife"
 
-
-# --- HTTP apps (FastAPI + MCP) ---
 
 mcp_app = mcp.http_app(path="/mcp")
 app = FastAPI(lifespan=mcp_app.lifespan, routes=[*mcp_app.routes])
