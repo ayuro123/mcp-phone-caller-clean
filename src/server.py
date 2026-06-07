@@ -15,7 +15,7 @@ mcp = FastMCP("Sample MCP Server")
 
 BASE_URL = "https://fastmcp-server-cy6x.onrender.com"
 
-DEFAULT_ELEVENLABS_VOICE_ID = "M6ic45wruJGWAxLFEMNK"
+DEFAULT_ELEVENLABS_VOICE_ID = "pfHF7CDbPKOQaeSpVy6d"
 
 
 def resolve_voice_id(voice: Optional[str] = None, voice_id: Optional[str] = None) -> str:
